@@ -1,6 +1,6 @@
 import pygame as pg
 import random
-from nn import NN
+from mlp import MLP
 from settings import *
 import os
 import numpy as np
@@ -17,7 +17,7 @@ class Snake:
         self.board_x = board_x
         self.board_y = board_y
         self.uniq = [0] * board_x * board_y
-        self.nn = NN(N_INPUT, N_HIDDEN1, N_HIDDEN2, N_OUTPUT, genes.copy())
+        self.nn = MLP(N_INPUT, N_HIDDEN1, N_HIDDEN2, N_OUTPUT, genes.copy())
         self.color = GREEN
 
     def get_state(self, food):
@@ -56,7 +56,6 @@ class Snake:
                 x += dir[0]
                 y += dir[1]
             state += [1.0/dis, see_food, see_self]
-
         return state
 
     def move(self, food):
@@ -88,19 +87,19 @@ class Snake:
 
 class Game:
     def __init__(self, genes_list, seed=None, show=False, rows=ROWS, cols=COLS) -> None:
-        self.Y = rows
-        self.X = cols
+        self.rows = rows
+        self.cols = cols
         self.show = show
         self.seed = seed if seed is not None else random.randint(-INF, INF)
         self.rand = random.Random(self.seed)
 
         # Create new snakes, both with 1 length.
         self.snakes = []
-        board = [(x, y) for x in range(self.X) for y in range(self.Y)]
+        board = [(x, y) for x in range(self.rows) for y in range(self.cols)]
         for genes in genes_list:
             head = self.rand.choice(board)
             direction = DIRECTIONS[self.rand.randint(0, 3)]
-            self.snakes.append(Snake(head, direction, genes, self.X, self.Y))
+            self.snakes.append(Snake(head, direction, genes, self.rows, self.cols))
 
         self.food = self.new_food(self.snakes)
         self.best_score = 0
@@ -142,8 +141,7 @@ class Game:
         return score, steps, self.seed
 
     def new_food(self, snakes):
-        """Find an empty grid to place food."""
-        board = set([(x, y) for x in range(self.X) for y in range(self.Y)])
+        board = set([(x, y) for x in range(self.rows) for y in range(self.cols)])
         for snake in snakes:
             if not snake.dead:
                 for body in snake.body:
