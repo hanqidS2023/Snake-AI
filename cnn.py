@@ -28,10 +28,10 @@ class MaskableSnakeTrainer:
         self.model = MaskablePPO(
             "CnnPolicy",
             self.env,
-            batch_size=1024*4,
-            device="mps",
+            batch_size=1024*8,
+            device="cuda",
             learning_rate=self.learning_rate,
-            n_epochs=3,
+            n_epochs=5,
             gamma=0.95,
             verbose=1,
             tensorboard_log=tensorboard_log
