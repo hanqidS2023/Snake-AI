@@ -5,10 +5,10 @@ import torch.nn as nn
 class MLP(nn.Module):
     def __init__(self, n_input, n_hidden1, n_hidden2, n_output, weights):
         super(MLP, self).__init__()
-        self.a = n_input
-        self.b = n_hidden1
-        self.c = n_hidden2
-        self.d = n_output
+        self.n_input = n_input
+        self.n_hidden1 = n_hidden1
+        self.n_hidden2 = n_hidden2
+        self.n_output = n_output
         
         self.fcl1 = nn.Linear(n_input, n_hidden1)  
         self.fcl2 = nn.Linear(n_hidden1, n_hidden2)
@@ -22,25 +22,25 @@ class MLP(nn.Module):
     def set_weights(self, weights):
         weights = torch.FloatTensor(weights)
         with torch.no_grad():
-            x = self.a * self.b
-            xx = x + self.b
-            y = xx + self.b * self.c
-            yy = y + self.c
-            z = yy + self.c * self.d
+            p1 = self.n_input * self.n_hidden1
+            p2 = p1 + self.n_hidden1
+            p3 = p2 + self.n_hidden1 * self.n_hidden2
+            p4 = p3 + self.n_hidden2
+            p5 = p4 + self.n_hidden2 * self.n_output
             
-            self.fcl1.weight.data = weights[0:x].reshape(self.b, self.a)
-            self.fcl1.bias.data = weights[x: xx]
+            self.fcl1.weight.data = weights[0:p1].reshape(self.n_hidden1, self.n_input)
+            self.fcl1.bias.data = weights[p1: p2]
             
-            self.fcl2.weight.data = weights[xx:y].reshape(self.c, self.b)
-            self.fcl2.bias.data = weights[y: yy]
+            self.fcl2.weight.data = weights[p2:p3].reshape(self.n_hidden2, self.n_hidden1)
+            self.fcl2.bias.data = weights[p3: p4]
             
-            self.out.weight.data = weights[yy:z].reshape(self.d, self.c)
-            self.out.bias.data = weights[z:]
+            self.out.weight.data = weights[p4:p5].reshape(self.n_output, self.n_hidden2)
+            self.out.bias.data = weights[p5:]
             
     def predict(self, input):
-        input = torch.tensor([input]).float()
-        y = self.forward(input)
-        return torch.argmax(y, dim=1).tolist()[0]
+        input = torch.FloatTensor(input)
+        output = self.forward(input)
+        return torch.argmax(output).item()
     
     def forward(self, x):
         y = self.fcl1(x)

@@ -14,11 +14,10 @@ class Individual:
         self.steps = 0
         self.seed = None
         self.fitness = 0.0
-        self.best_individual = None
         self.average_score = 0
 
     def calculate_fitness(self):
-        game = Game([self.genes])
+        game = Game(self.genes)
         self.score, self.steps, self.seed = game.play()
         self.fitness = self.score + (1.0 / self.steps)
 
@@ -29,6 +28,7 @@ class GA:
         self.child_size = CHILD_SIZE
         self.genes_len = GENES_LEN
         self.mutation_rate = MUTATION_RATE
+        self.best_individual = None
         self.population = []
 
         self.generate_first_generation()
@@ -50,10 +50,10 @@ class GA:
         gene1[:l+1], gene2[:l+1] = gene2[:l+1], gene1[:l+1]
 
     def mutate(self, c_genes):
-        mutation_array = np.random.random(c_genes.shape) < self.mutation_rate
+        mutation_index = np.random.random(c_genes.shape) < self.mutation_rate
         mutation = np.random.normal(size=c_genes.shape)
-        mutation[mutation_array] *= 0.2
-        c_genes[mutation_array] += mutation[mutation_array]
+        mutation[mutation_index] *= 0.2
+        c_genes[mutation_index] += mutation[mutation_index]
 
     def elitism(self, size):
         population = sorted(
@@ -74,16 +74,19 @@ class GA:
         return selection
 
     def evolve(self):
+        # Calculate average score
         total_score = 0
         for individual in self.population:
             individual.calculate_fitness()
             total_score += individual.score
         self.average_score = total_score / len(self.population)
 
-        self.population = self.select(self.pop_size)
+        # Apply elitism, get best individual
+        self.population = self.elitism(self.pop_size - self.child_size)
         self.best_individual = self.population[0]
         random.shuffle(self.population)
 
+        # Apply Roulette Wheel selection for each child
         children = []
         while (len(children) < self.child_size):
             p1, p2 = self.select(2)
@@ -107,37 +110,27 @@ class GA:
         with open(seed_pth, "w") as f:
             f.write(str(self.best_individual.seed))
 
-    def save_all(self):
-        for individual in self.population:
-            individual.calculate_fitness()
-        population = self.select(self.pop_size)
-        for i in range(len(population)):
-            pth = os.path.join("genes", "all", str(i))
-            with open(pth, "w") as f:
-                for gene in self.population[i].genes:
-                    f.write(str(gene) + " ")
 
-
-def train_ga(show=True, load=False):
+def train_ga(show=True):
     ga = GA()
     record = 0
     generation = 0
 
-    if load:
-        ga.load_first_generation()
-    else:
-        ga.generate_first_generation()
+    ga.generate_first_generation()
 
     while True:
         generation += 1
         ga.evolve()
 
         best_score = ga.best_individual.score
+        
+        if best_score == 99:
+            break
 
-        # # Save the best individual if it surpasses the previous record
-        # if best_score > record:
-        #     record = best_score
-        #     ga.save_best()
+        # Save the best individual if it surpasses the previous record
+        if best_score > record:
+            record = best_score
+            ga.save_best()
 
         if show:
             genes = ga.best_individual.genes
@@ -145,18 +138,15 @@ def train_ga(show=True, load=False):
             game = Game(show=True, genes_list=[genes], seed=seed)
             game.play()
 
-        # if generation % 20 == 0:
-        #     ga.save_all()
-
         print(
             f"Generation: {generation}, Best Score: {best_score}, Record: {record}, Average: {ga.average_score}")
 
 
-def run_multiple_tasks(window_num, show, load):
+def run_multiple_tasks(window_num, show):
     with mp.Pool(window_num) as pool:
         # Run multiple instances with the specified parameters
         results = pool.starmap(
-            train_ga, [(show, load) for _ in range(window_num)]
+            train_ga, [(show,) for _ in range(window_num)]
         )
 
 
@@ -173,9 +163,7 @@ if __name__ == '__main__':
     show, load, window = None, None, 1
     if args.s:
         show = True
-    if args.l:
-        load = True
     if args.p and args.p > 1:
         window = args.p
 
-    run_multiple_tasks(window, show, load)
+    run_multiple_tasks(window, show)
